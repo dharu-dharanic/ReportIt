@@ -19,9 +19,19 @@ const UserSchema = new mongoose.Schema({
     enum: ['citizen', 'worker', 'admin'],
     default: 'citizen'
   },
+  status: {
+    type: String,
+    enum: ['active', 'pending', 'rejected'],
+    default: 'active'
+  },
   reputationScore: {
     type: Number,
     default: 0
+  },
+  badge: {
+    type: String,
+    enum: ['bronze', 'silver', 'gold'],
+    default: 'bronze'
   },
   createdAt: {
     type: Date,
