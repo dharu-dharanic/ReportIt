@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createIssue } from '../services/api';
+import Navbar from '../components/Navbar';
 
 const ReportIssue = () => {
   const [title, setTitle] = useState('');
@@ -15,15 +16,12 @@ const ReportIssue = () => {
   const [locationLoading, setLocationLoading] = useState(false);
   const navigate = useNavigate();
 
-  // Get current location
   const getLocation = () => {
     setLocationLoading(true);
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
         setCoordinates([longitude, latitude]);
-
-        // Reverse geocode to get address
         try {
           const res = await fetch(
             `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
@@ -35,7 +33,7 @@ const ReportIssue = () => {
         }
         setLocationLoading(false);
       },
-      (error) => {
+      () => {
         setError('Could not get location. Please enter address manually.');
         setLocationLoading(false);
       }
@@ -60,7 +58,6 @@ const ReportIssue = () => {
       images.forEach((image) => {
         formData.append('images', image);
       });
-
       await createIssue(formData);
       navigate('/issues');
     } catch (err) {
@@ -74,16 +71,10 @@ const ReportIssue = () => {
     <div className="min-h-screen bg-gray-100">
 
       {/* Navbar */}
-      <nav className="bg-blue-600 text-white p-4 flex justify-between items-center">
-        <h1
-          className="text-xl font-bold cursor-pointer"
-          onClick={() => navigate('/')}
-        >
-          ReportIt
-        </h1>
-      </nav>
+      <Navbar />
 
       <div className="max-w-2xl mx-auto p-6">
+
         <h2 className="text-2xl font-bold text-blue-600 mb-6">
           Report an Issue
         </h2>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getIssue, upvoteIssue } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import Navbar from '../components/Navbar';
 
 const IssueDetail = () => {
   const { id } = useParams();
@@ -75,22 +76,17 @@ const IssueDetail = () => {
     <div className="min-h-screen bg-gray-100">
 
       {/* Navbar */}
-      <nav className="bg-blue-600 text-white p-4 flex justify-between items-center">
-        <h1
-          className="text-xl font-bold cursor-pointer"
-          onClick={() => navigate('/')}
-        >
-          ReportIt
-        </h1>
+      <Navbar />
+
+      <div className="max-w-3xl mx-auto p-6">
+
+        {/* Back Button */}
         <button
           onClick={() => navigate('/issues')}
-          className="bg-white text-blue-600 px-3 py-1 rounded hover:bg-gray-100"
+          className="mb-4 text-blue-600 hover:underline flex items-center gap-1"
         >
           ← Back to Issues
         </button>
-      </nav>
-
-      <div className="max-w-3xl mx-auto p-6">
 
         {/* Title + Badges */}
         <div className="bg-white p-6 rounded-lg shadow mb-4">
@@ -160,19 +156,30 @@ const IssueDetail = () => {
             </div>
           )}
 
-          {/* Upvote */}
-          <div className="flex items-center gap-4 mt-4">
-            <button
-              onClick={handleUpvote}
-              disabled={upvoting}
-              className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 flex items-center gap-2"
-            >
-              👍 Upvote
-            </button>
-            <span className="text-gray-600 font-medium">
-              {issue.upvoteCount} upvotes
-            </span>
-          </div>
+          {/* Upvote — citizen only */}
+          {user?.role === 'citizen' && (
+            <div className="flex items-center gap-4 mt-4">
+              <button
+                onClick={handleUpvote}
+                disabled={upvoting}
+                className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 flex items-center gap-2"
+              >
+                👍 Upvote
+              </button>
+              <span className="text-gray-600 font-medium">
+                {issue.upvoteCount} upvotes
+              </span>
+            </div>
+          )}
+
+          {/* Show upvote count for non citizens */}
+          {user?.role !== 'citizen' && (
+            <div className="mt-4">
+              <span className="text-gray-600 font-medium">
+                👍 {issue.upvoteCount} upvotes
+              </span>
+            </div>
+          )}
 
         </div>
 

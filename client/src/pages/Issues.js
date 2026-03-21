@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAllIssues } from '../services/api';
+import Navbar from '../components/Navbar';
 
 const Issues = () => {
   const [issues, setIssues] = useState([]);
@@ -44,20 +45,7 @@ const Issues = () => {
     <div className="min-h-screen bg-gray-100">
 
       {/* Navbar */}
-      <nav className="bg-blue-600 text-white p-4 flex justify-between items-center">
-        <h1
-          className="text-xl font-bold cursor-pointer"
-          onClick={() => navigate('/')}
-        >
-          ReportIt
-        </h1>
-        <button
-          onClick={() => navigate('/report')}
-          className="bg-white text-blue-600 px-3 py-1 rounded hover:bg-gray-100"
-        >
-          + Report Issue
-        </button>
-      </nav>
+      <Navbar />
 
       <div className="max-w-4xl mx-auto p-6">
 

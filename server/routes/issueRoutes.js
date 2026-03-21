@@ -9,10 +9,12 @@ const {
   getIssue,
   updateStatus,
   upvoteIssue,
-  deleteIssue
+  deleteIssue,
+  assignIssue,
+  uploadResolutionProof
 } = require('../controllers/issueController');
 
-// Create issue (citizen only)
+// Create issue (citizen + admin)
 router.post('/', auth, role('citizen', 'admin'), upload.array('images', 5), createIssue);
 
 // Get all issues (public)
@@ -26,6 +28,12 @@ router.put('/:id/status', auth, role('worker', 'admin'), updateStatus);
 
 // Upvote issue (citizen only)
 router.put('/:id/upvote', auth, role('citizen'), upvoteIssue);
+
+// Assign issue (admin only)
+router.put('/:id/assign', auth, role('admin'), assignIssue);
+
+// Upload resolution proof (worker only)
+router.put('/:id/resolve', auth, role('worker'), upload.array('images', 5), uploadResolutionProof);
 
 // Delete issue (admin only)
 router.delete('/:id', auth, role('admin'), deleteIssue);

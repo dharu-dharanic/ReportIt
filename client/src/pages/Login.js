@@ -16,10 +16,19 @@ const Login = () => {
     setLoading(true);
     setError('');
     try {
-      await login(email, password);
-      navigate('/');
+      const data = await login(email, password);
+
+      // Redirect based on role
+      if (data.user.role === 'admin') {
+        navigate('/admin/dashboard');
+      } else if (data.user.role === 'worker') {
+        navigate('/worker/dashboard');
+      } else {
+        navigate('/');
+      }
+
     } catch (err) {
-      setError('Invalid email or password');
+      setError(err.response?.data?.message || 'Invalid email or password');
     } finally {
       setLoading(false);
     }
@@ -28,7 +37,7 @@ const Login = () => {
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center">
       <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
-        
+
         <h2 className="text-2xl font-bold text-center text-blue-600 mb-6">
           Login to ReportIt
         </h2>

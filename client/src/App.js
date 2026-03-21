@@ -11,6 +11,11 @@ import Pending from './pages/Pending';
 import IssueDetail from './pages/IssueDetail';
 import ReportIssue from './pages/ReportIssue';
 import Issues from './pages/Issues';
+import AdminDashboard from './pages/AdminDashboard';
+import WorkerDashboard from './pages/WorkerDashboard';
+import CitizenDashboard from './pages/CitizenDashboard';
+
+
 
 
 // Add this route
@@ -41,16 +46,21 @@ function App() {
           {/* Worker Routes */}
           <Route path="/worker/dashboard" element={
             <ProtectedRoute allowedRoles={['worker']}>
-              <div>Worker Dashboard — Coming Soon</div>
+              <WorkerDashboard />
             </ProtectedRoute>
           } />
 
-          {/* Admin Routes */}
+        <Route path="/citizen/dashboard" element={
+          <ProtectedRoute allowedRoles={['citizen']}>
+            <CitizenDashboard />
+          </ProtectedRoute>
+        } />
+
           <Route path="/admin/dashboard" element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <div>Admin Dashboard — Coming Soon</div>
-            </ProtectedRoute>
-          } />
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminDashboard />
+          </ProtectedRoute>
+        } />
 
         </Routes>
       </Router>

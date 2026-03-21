@@ -137,3 +137,72 @@ exports.deleteIssue = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
+// Assign Issue to Worker
+exports.assignIssue = async (req, res) => {
+  try {
+    const { workerId } = req.body;
+
+    const issue = await Issue.findByIdAndUpdate(
+      req.params.id,
+      {
+        assignedTo: workerId,
+        status: 'assigned'
+      },
+      { new: true }
+    );
+
+    if (!issue) {
+      return res.status(404).json({ message: 'Issue not found' });
+    }
+
+    // Create notification for worker
+    const Notification = require('../models/Notification');
+    await Notification.create({
+      message: `You have been assigned a new issue: ${issue.title}`,
+      type: 'issue_assigned',
+      forRole: 'worker',
+      userId: workerId
+    });
+
+    res.status(200).json({ message: 'Issue assigned successfully', issue });
+
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Upload Resolution Proof
+exports.uploadResolutionProof = async (req, res) => {
+  try {
+    const images = req.files ? req.files.map(file => file.path) : [];
+
+    const issue = await Issue.findByIdAndUpdate(
+      req.params.id,
+      {
+        resolutionImages: images,
+        status: 'resolved',
+        resolvedAt: new Date()
+      },
+      { new: true }
+    );
+
+    if (!issue) {
+      return res.status(404).json({ message: 'Issue not found' });
+    }
+
+    // Create notification for reporter
+    const Notification = require('../models/Notification');
+    await Notification.create({
+      message: `Your reported issue "${issue.title}" has been resolved!`,
+      type: 'issue_resolved',
+      forRole: 'citizen',
+      userId: issue.reporter
+    });
+
+    res.status(200).json({ message: 'Resolution proof uploaded', issue });
+
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
