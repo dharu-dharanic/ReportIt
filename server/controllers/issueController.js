@@ -26,7 +26,7 @@ exports.createIssue = async (req, res) => {
       },
       images,
       reporter: req.user.id,
-      isAnonymous: isAnonymous || false,
+      isAnonymous: isAnonymous === 'true' || isAnonymous === true || false,
       deadline
     });
 
@@ -115,7 +115,10 @@ exports.upvoteIssue = async (req, res) => {
 
     await issue.save();
 
-    res.status(200).json({ message: 'Upvoted successfully', upvoteCount: issue.upvoteCount });
+    res.status(200).json({
+      message: 'Upvoted successfully',
+      upvoteCount: issue.upvoteCount
+    });
 
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
