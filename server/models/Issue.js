@@ -71,6 +71,10 @@ const IssueSchema = new mongoose.Schema({
   resolutionImages: [{
     type: String
   }],
+  escalated: {
+    type: Boolean,
+    default: false
+  },
   createdAt: {
     type: Date,
     default: Date.now

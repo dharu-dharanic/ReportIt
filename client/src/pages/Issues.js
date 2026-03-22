@@ -2,17 +2,11 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAllIssues } from '../services/api';
 import Navbar from '../components/Navbar';
-import { MapContainer, TileLayer, Marker, Popup, CircleMarker } from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
+import { io } from 'socket.io-client';
 
-// Fix leaflet marker icon issue
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-});
+const SOCKET_URL = 'http://localhost:5000';
 
 const categoryColors = {
   road: '#ef4444',
@@ -31,6 +25,44 @@ const Issues = () => {
 
   useEffect(() => {
     fetchIssues();
+
+    // Connect socket
+    const socket = io(SOCKET_URL);
+
+    // Join issues room
+    socket.emit('joinIssues');
+
+    // New issue reported → add to list
+    socket.on('newIssue', (issue) => {
+      setIssues(prev => [issue, ...prev]);
+    });
+
+    // Issue status changed → update in list
+    socket.on('issueStatusChanged', ({ issueId, status }) => {
+      setIssues(prev =>
+        prev.map(issue =>
+          issue._id === issueId ? { ...issue, status } : issue
+        )
+      );
+    });
+
+    // Issue upvoted → update count
+    socket.on('issueUpvoted', ({ issueId, upvoteCount, severity }) => {
+      setIssues(prev =>
+        prev.map(issue =>
+          issue._id === issueId
+            ? { ...issue, upvoteCount, severity }
+            : issue
+        )
+      );
+    });
+
+    // Issue deleted → remove from list
+    socket.on('issueDeleted', ({ issueId }) => {
+      setIssues(prev => prev.filter(issue => issue._id !== issueId));
+    });
+
+    return () => socket.disconnect();
   }, []);
 
   const fetchIssues = async () => {
@@ -61,7 +93,6 @@ const Issues = () => {
     return 'bg-gray-100 text-gray-600';
   };
 
-  // Get map center from first issue or default to India
   const mapCenter = filteredIssues.length > 0
     ? [
         filteredIssues[0].location.coordinates[1],
@@ -148,7 +179,9 @@ const Issues = () => {
             {view === 'list' && (
               <div className="space-y-4">
                 {filteredIssues.length === 0 ? (
-                  <p className="text-center text-gray-600">No issues found.</p>
+                  <p className="text-center text-gray-600">
+                    No issues found.
+                  </p>
                 ) : (
                   filteredIssues.map(issue => (
                     <div
@@ -157,7 +190,9 @@ const Issues = () => {
                       className="bg-white p-4 rounded-lg shadow cursor-pointer hover:shadow-md transition"
                     >
                       <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-bold text-gray-800">{issue.title}</h3>
+                        <h3 className="font-bold text-gray-800">
+                          {issue.title}
+                        </h3>
                         <div className="flex gap-2">
                           <span className={`text-xs px-2 py-1 rounded-full ${getSeverityColor(issue.severity)}`}>
                             {issue.severity}
@@ -171,11 +206,15 @@ const Issues = () => {
                         {issue.description.substring(0, 100)}...
                       </p>
                       <div className="flex justify-between items-center text-xs text-gray-500">
-                        <span>📍 {issue.location.address.substring(0, 50)}...</span>
+                        <span>
+                          📍 {issue.location.address.substring(0, 50)}...
+                        </span>
                         <div className="flex gap-3">
                           <span>👍 {issue.upvoteCount}</span>
                           <span>🏷️ {issue.category}</span>
-                          <span>{new Date(issue.createdAt).toLocaleDateString()}</span>
+                          <span>
+                            {new Date(issue.createdAt).toLocaleDateString()}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -201,7 +240,6 @@ const Issues = () => {
                       attribution='&copy; OpenStreetMap contributors'
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     />
-
                     {filteredIssues.map(issue => (
                       <CircleMarker
                         key={issue._id}
@@ -244,7 +282,6 @@ const Issues = () => {
                         </Popup>
                       </CircleMarker>
                     ))}
-
                   </MapContainer>
                 )}
               </div>

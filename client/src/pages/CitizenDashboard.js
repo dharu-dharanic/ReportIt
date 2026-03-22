@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getAllIssues } from '../services/api';
 import Navbar from '../components/Navbar';
+import { io } from 'socket.io-client';
+
+const SOCKET_URL = 'http://localhost:5000';
 
 const CitizenDashboard = () => {
   const { user } = useAuth();
@@ -15,12 +18,58 @@ const CitizenDashboard = () => {
 
   useEffect(() => {
     fetchData();
-  }, []);
+
+    // Connect socket
+    const socket = io(SOCKET_URL);
+
+    // Join personal room
+    if (user?.id) {
+      socket.emit('join', user.id);
+    }
+
+    // Issue status updated
+    socket.on('issueUpdated', ({ issueId, status, message }) => {
+      // Add notification
+      setNotifications(prev => [{
+        id: Date.now(),
+        message,
+        time: new Date().toLocaleTimeString(),
+        read: false
+      }, ...prev]);
+
+      // Update issue status in list
+      setIssues(prev =>
+        prev.map(issue =>
+          issue._id === issueId ? { ...issue, status } : issue
+        )
+      );
+    });
+
+    // Issue resolved
+    socket.on('issueResolved', ({ issueId, message }) => {
+      setNotifications(prev => [{
+        id: Date.now(),
+        message,
+        time: new Date().toLocaleTimeString(),
+        read: false,
+        type: 'resolved'
+      }, ...prev]);
+
+      setIssues(prev =>
+        prev.map(issue =>
+          issue._id === issueId
+            ? { ...issue, status: 'resolved' }
+            : issue
+        )
+      );
+    });
+
+    return () => socket.disconnect();
+  }, [user]);
 
   const fetchData = async () => {
     try {
       const { data } = await getAllIssues();
-      // Filter issues reported by this citizen
       const myIssues = data.filter(
         issue => issue.reporter?._id === user?.id ||
                  issue.reporter === user?.id
@@ -32,6 +81,14 @@ const CitizenDashboard = () => {
       setLoading(false);
     }
   };
+
+  const markAllRead = () => {
+    setNotifications(prev =>
+      prev.map(n => ({ ...n, read: true }))
+    );
+  };
+
+  const unreadCount = notifications.filter(n => !n.read).length;
 
   const getStatusColor = (status) => {
     if (status === 'resolved') return 'bg-green-100 text-green-600';
@@ -52,10 +109,11 @@ const CitizenDashboard = () => {
     return 'bg-orange-400 text-white';
   };
 
-  // Stats
   const totalReported = issues.length;
   const resolved = issues.filter(i => i.status === 'resolved').length;
-  const inProgress = issues.filter(i => i.status === 'in-progress' || i.status === 'assigned').length;
+  const inProgress = issues.filter(
+    i => i.status === 'in-progress' || i.status === 'assigned'
+  ).length;
   const pending = issues.filter(i => i.status === 'reported').length;
 
   if (loading) return (
@@ -125,19 +183,31 @@ const CitizenDashboard = () => {
 
         {/* Tabs */}
         <div className="flex gap-2 mb-6">
-          {['myissues', 'notifications'].map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium capitalize ${
-                activeTab === tab
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              {tab === 'myissues' ? 'My Issues' : 'Notifications'}
-            </button>
-          ))}
+          <button
+            onClick={() => setActiveTab('myissues')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium ${
+              activeTab === 'myissues'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            My Issues
+          </button>
+          <button
+            onClick={() => setActiveTab('notifications')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 ${
+              activeTab === 'notifications'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            Notifications
+            {unreadCount > 0 && (
+              <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                {unreadCount}
+              </span>
+            )}
+          </button>
         </div>
 
         {/* My Issues Tab */}
@@ -163,7 +233,6 @@ const CitizenDashboard = () => {
                     className="bg-white p-5 rounded-lg shadow hover:shadow-md transition cursor-pointer"
                     onClick={() => navigate(`/issues/${issue._id}`)}
                   >
-                    {/* Header */}
                     <div className="flex justify-between items-start mb-2">
                       <h3 className="font-bold text-gray-800">
                         {issue.title}
@@ -177,15 +246,13 @@ const CitizenDashboard = () => {
                         </span>
                       </div>
                     </div>
-
-                    {/* Description */}
                     <p className="text-gray-600 text-sm mb-2">
                       {issue.description.substring(0, 100)}...
                     </p>
-
-                    {/* Footer */}
                     <div className="flex justify-between items-center text-xs text-gray-500">
-                      <span>📍 {issue.location.address.substring(0, 50)}...</span>
+                      <span>
+                        📍 {issue.location.address.substring(0, 50)}...
+                      </span>
                       <div className="flex gap-3">
                         <span>👍 {issue.upvoteCount}</span>
                         <span>
@@ -212,7 +279,6 @@ const CitizenDashboard = () => {
                         </div>
                       </div>
                     )}
-
                   </div>
                 ))}
               </div>
@@ -222,10 +288,55 @@ const CitizenDashboard = () => {
 
         {/* Notifications Tab */}
         {activeTab === 'notifications' && (
-          <div className="bg-white p-6 rounded-lg shadow">
-            <p className="text-gray-500 text-center">
-              No notifications yet.
-            </p>
+          <div>
+            {notifications.length === 0 ? (
+              <div className="bg-white p-8 rounded-lg shadow text-center">
+                <p className="text-gray-500">No notifications yet.</p>
+                <p className="text-gray-400 text-sm mt-1">
+                  You'll be notified when your issues are updated.
+                </p>
+              </div>
+            ) : (
+              <div>
+                <div className="flex justify-end mb-3">
+                  <button
+                    onClick={markAllRead}
+                    className="text-blue-600 text-sm hover:underline"
+                  >
+                    Mark all as read
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {notifications.map(notification => (
+                    <div
+                      key={notification.id}
+                      className={`p-4 rounded-lg shadow flex justify-between items-start ${
+                        notification.read
+                          ? 'bg-white'
+                          : 'bg-blue-50 border-l-4 border-blue-500'
+                      }`}
+                    >
+                      <div>
+                        <p className={`text-sm ${
+                          notification.type === 'resolved'
+                            ? 'text-green-600 font-medium'
+                            : 'text-gray-700'
+                        }`}>
+                          {notification.type === 'resolved' ? '✅ ' : '🔔 '}
+                          {notification.message}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          {notification.time}
+                        </p>
+                      </div>
+                      {!notification.read && (
+                        <span className="w-2 h-2 bg-blue-500 rounded-full mt-1"></span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
