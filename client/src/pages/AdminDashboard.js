@@ -1,9 +1,13 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getAllIssues, updateStatus, deleteIssue } from '../services/api';
 import axios from 'axios';
 import Navbar from '../components/Navbar';
+import { io } from 'socket.io-client';
+
+const SOCKET_URL = 'http://localhost:5000';
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -13,11 +17,58 @@ const AdminDashboard = () => {
   const [pendingWorkers, setPendingWorkers] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
   const [workers, setWorkers] = useState([]);
+  const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
     fetchData();
+
+    // Connect socket
+    const socket = io(SOCKET_URL);
+
+    // Listen for escalated issues
+    socket.on('issueEscalated', ({ issueId, title, severity, message }) => {
+      setNotifications(prev => [{
+        id: Date.now(),
+        message,
+        title,
+        severity,
+        time: new Date().toLocaleTimeString(),
+        read: false,
+        type: 'escalated'
+      }, ...prev]);
+
+      // Update issue severity in list
+      setIssues(prev =>
+        prev.map(issue =>
+          issue._id === issueId ? { ...issue, severity } : issue
+        )
+      );
+    });
+
+    // Listen for new issues
+    socket.on('newIssue', (issue) => {
+      setIssues(prev => [issue, ...prev]);
+      setNotifications(prev => [{
+        id: Date.now(),
+        message: `New issue reported: ${issue.title}`,
+        time: new Date().toLocaleTimeString(),
+        read: false,
+        type: 'new'
+      }, ...prev]);
+    });
+
+    // Listen for status changes
+    socket.on('issueStatusChanged', ({ issueId, status }) => {
+      setIssues(prev =>
+        prev.map(issue =>
+          issue._id === issueId ? { ...issue, status } : issue
+        )
+      );
+    });
+
+    return () => socket.disconnect();
   }, []);
 
   const fetchData = async () => {
@@ -106,6 +157,12 @@ const AdminDashboard = () => {
     }
   };
 
+  const markAllRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  };
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+
   const getStatusColor = (status) => {
     if (status === 'resolved') return 'bg-green-100 text-green-600';
     if (status === 'in-progress') return 'bg-blue-100 text-blue-600';
@@ -119,7 +176,6 @@ const AdminDashboard = () => {
     return 'bg-green-100 text-green-600';
   };
 
-  // Analytics
   const totalIssues = issues.length;
   const resolvedIssues = issues.filter(i => i.status === 'resolved').length;
   const pendingIssues = issues.filter(i => i.status === 'reported').length;
@@ -171,12 +227,12 @@ const AdminDashboard = () => {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex gap-2 mb-6 flex-wrap">
           {['issues', 'workers', 'users'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 rounded capitalize ${
+              className={`px-4 py-2 rounded-lg capitalize ${
                 activeTab === tab
                   ? 'bg-blue-600 text-white'
                   : 'bg-white text-gray-600 hover:bg-gray-50'
@@ -190,6 +246,23 @@ const AdminDashboard = () => {
               )}
             </button>
           ))}
+
+          {/* Notifications Tab */}
+          <button
+            onClick={() => setActiveTab('notifications')}
+            className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+              activeTab === 'notifications'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            Notifications
+            {unreadCount > 0 && (
+              <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                {unreadCount}
+              </span>
+            )}
+          </button>
         </div>
 
         {/* Issues Tab */}
@@ -203,6 +276,11 @@ const AdminDashboard = () => {
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="font-bold text-gray-800">{issue.title}</h3>
                     <div className="flex gap-2">
+                      {issue.escalated && (
+                        <span className="text-xs px-2 py-1 rounded-full bg-orange-100 text-orange-600">
+                          ⚠️ Escalated
+                        </span>
+                      )}
                       <span className={`text-xs px-2 py-1 rounded-full ${getSeverityColor(issue.severity)}`}>
                         {issue.severity}
                       </span>
@@ -218,7 +296,6 @@ const AdminDashboard = () => {
                   </p>
 
                   <div className="flex gap-2 flex-wrap">
-                    {/* Assign to worker */}
                     <select
                       onChange={(e) => handleAssign(issue._id, e.target.value)}
                       className="border border-gray-300 rounded p-1 text-sm"
@@ -232,7 +309,6 @@ const AdminDashboard = () => {
                       ))}
                     </select>
 
-                    {/* Update Status */}
                     <select
                       onChange={(e) => handleStatusUpdate(issue._id, e.target.value)}
                       className="border border-gray-300 rounded p-1 text-sm"
@@ -244,7 +320,6 @@ const AdminDashboard = () => {
                       <option value="resolved">Resolved</option>
                     </select>
 
-                    {/* Delete */}
                     <button
                       onClick={() => handleDelete(issue._id)}
                       className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600"
@@ -252,7 +327,6 @@ const AdminDashboard = () => {
                       Delete
                     </button>
 
-                    {/* View */}
                     <button
                       onClick={() => navigate(`/issues/${issue._id}`)}
                       className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600"
@@ -336,6 +410,66 @@ const AdminDashboard = () => {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Notifications Tab */}
+        {activeTab === 'notifications' && (
+          <div>
+            {notifications.length === 0 ? (
+              <div className="bg-white p-8 rounded-lg shadow text-center">
+                <p className="text-gray-500">No notifications yet.</p>
+                <p className="text-gray-400 text-sm mt-1">
+                  You'll be notified when issues are escalated or new issues reported.
+                </p>
+              </div>
+            ) : (
+              <div>
+                <div className="flex justify-end mb-3">
+                  <button
+                    onClick={markAllRead}
+                    className="text-blue-600 text-sm hover:underline"
+                  >
+                    Mark all as read
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {notifications.map(notification => (
+                    <div
+                      key={notification.id}
+                      className={`p-4 rounded-lg shadow flex justify-between items-start ${
+                        notification.read
+                          ? 'bg-white'
+                          : notification.type === 'escalated'
+                          ? 'bg-orange-50 border-l-4 border-orange-500'
+                          : 'bg-blue-50 border-l-4 border-blue-500'
+                      }`}
+                    >
+                      <div>
+                        <p className={`text-sm font-medium ${
+                          notification.type === 'escalated'
+                            ? 'text-orange-600'
+                            : 'text-gray-700'
+                        }`}>
+                          {notification.type === 'escalated' ? '⚠️ ' : '🔔 '}
+                          {notification.message}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          {notification.time}
+                        </p>
+                      </div>
+                      {!notification.read && (
+                        <span className={`w-2 h-2 rounded-full mt-1 ${
+                          notification.type === 'escalated'
+                            ? 'bg-orange-500'
+                            : 'bg-blue-500'
+                        }`}></span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

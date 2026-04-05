@@ -14,6 +14,7 @@ import Issues from './pages/Issues';
 import AdminDashboard from './pages/AdminDashboard';
 import WorkerDashboard from './pages/WorkerDashboard';
 import CitizenDashboard from './pages/CitizenDashboard';
+import NotFound from './pages/NotFound';
 
 
 
@@ -61,6 +62,8 @@ function App() {
             <AdminDashboard />
           </ProtectedRoute>
         } />
+
+        <Route path="*" element={<NotFound />} />
 
         </Routes>
       </Router>
