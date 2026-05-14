@@ -1,8 +1,6 @@
 # ReportIt 📍
 ### Crowdsourced Civic Issue Reporting and Resolution System
 
-![ReportIt Banner](https://via.placeholder.com/1200x400/16a34a/ffffff?text=ReportIt+%E2%80%94+Making+Cities+Better+Together)
-
 > A full-stack MERN application that empowers citizens to report civic issues, track resolution progress in real-time, and hold local authorities accountable.
 
 ---
@@ -100,7 +98,7 @@ Cloudinary account
 
 **1. Clone the repository**
 ```bash
-git clone https://github.com/yourusername/ReportIt.git
+git clone https://github.com/dharu-dharanic/ReportIt.git
 cd ReportIt
 ```
 
@@ -304,8 +302,7 @@ This project is licensed under the MIT License.
 ## 👨‍💻 Author
 
 **Your Name**
-- GitHub: [@yourusername](https://github.com/yourusername)
-- LinkedIn: [yourlinkedin](https://linkedin.com/in/yourlinkedin)
+- GitHub: [@dharu-dharanic](https://github.com/dharu-dharanic)
 
 ---
 
