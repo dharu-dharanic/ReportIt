@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getAllIssues, updateStatus, deleteIssue } from '../services/api';
@@ -11,6 +11,7 @@ const SOCKET_URL = 'https://reportit-backend.onrender.com';
 const AdminDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+
   const [activeTab, setActiveTab] = useState('issues');
   const [issues, setIssues] = useState([]);
   const [pendingWorkers, setPendingWorkers] = useState([]);
@@ -21,71 +22,97 @@ const AdminDashboard = () => {
   const [error, setError] = useState('');
   const [searchIssue, setSearchIssue] = useState('');
 
+  const fetchData = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const headers = {
+        Authorization: `Bearer ${token}`
+      };
+
+      const [issuesRes, pendingRes, usersRes] = await Promise.all([
+        getAllIssues(),
+        axios.get(
+          'https://reportit-backend.onrender.com/api/auth/pending-workers',
+          { headers }
+        ),
+        axios.get(
+          'https://reportit-backend.onrender.com/api/auth/users',
+          { headers }
+        )
+      ]);
+
+      setIssues(issuesRes.data);
+      setPendingWorkers(pendingRes.data);
+      setAllUsers(usersRes.data);
+      setWorkers(
+        usersRes.data.filter(
+          user => user.role === 'worker' && user.status === 'active'
+        )
+      );
+    } catch (err) {
+      setError('Failed to load data');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchData();
 
     const socket = io(SOCKET_URL);
 
     socket.on('issueEscalated', ({ issueId, title, severity, message }) => {
-      setNotifications(prev => [{
-        id: Date.now(),
-        message,
-        title,
-        severity,
-        time: new Date().toLocaleTimeString(),
-        read: false,
-        type: 'escalated'
-      }, ...prev]);
+      setNotifications(prev => [
+        {
+          id: Date.now(),
+          message,
+          title,
+          severity,
+          time: new Date().toLocaleTimeString(),
+          read: false,
+          type: 'escalated'
+        },
+        ...prev
+      ]);
+
       setIssues(prev =>
         prev.map(issue =>
-          issue._id === issueId ? { ...issue, severity } : issue
+          issue._id === issueId
+            ? { ...issue, severity }
+            : issue
         )
       );
     });
 
-    socket.on('newIssue', (issue) => {
+    socket.on('newIssue', issue => {
       setIssues(prev => [issue, ...prev]);
-      setNotifications(prev => [{
-        id: Date.now(),
-        message: `New issue reported: ${issue.title}`,
-        time: new Date().toLocaleTimeString(),
-        read: false,
-        type: 'new'
-      }, ...prev]);
+
+      setNotifications(prev => [
+        {
+          id: Date.now(),
+          message: `New issue reported: ${issue.title}`,
+          time: new Date().toLocaleTimeString(),
+          read: false,
+          type: 'new'
+        },
+        ...prev
+      ]);
     });
 
     socket.on('issueStatusChanged', ({ issueId, status }) => {
       setIssues(prev =>
         prev.map(issue =>
-          issue._id === issueId ? { ...issue, status } : issue
+          issue._id === issueId
+            ? { ...issue, status }
+            : issue
         )
       );
     });
 
-    return () => socket.disconnect();
-  }, []);
-
-  const fetchData = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const headers = { Authorization: `Bearer ${token}` };
-
-      const [issuesRes, pendingRes, usersRes] = await Promise.all([
-        getAllIssues(),
-        axios.get('https://reportit-backend.onrender.com/api/auth/pending-workers', { headers }),
-        axios.get('https://reportit-backend.onrender.com/api/auth/users', { headers })
-      ]);
-
-      setIssues(issuesRes.data);
-      setPendingWorkers(pendingRes.data);
-      setAllUsers(usersRes.data);
-      setWorkers(usersRes.data.filter(u => u.role === 'worker' && u.status === 'active'));
-    } catch (err) {
-      setError('Failed to load data');
-    } finally {
-      setLoading(false);
-    }
-  };
+    return () => {
+      socket.disconnect();
+    };
+  }, [fetchData]);
 
   const handleApprove = async (id) => {
     try {
