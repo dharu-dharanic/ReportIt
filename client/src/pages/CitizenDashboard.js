@@ -1,13 +1,11 @@
-
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getAllIssues } from '../services/api';
 import Navbar from '../components/Navbar';
 import { io } from 'socket.io-client';
 
-const SOCKET_URL = 'http://localhost:5000';
+const SOCKET_URL = 'https://reportit-backend.onrender.com';
 
 const CitizenDashboard = () => {
   const { user } = useAuth();
@@ -16,36 +14,67 @@ const CitizenDashboard = () => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('myissues');
-  const [error, setError] = useState('');
+  const [, setError] = useState('');
+
+  const fetchData = useCallback(async () => {
+    try {
+      const { data } = await getAllIssues();
+
+      const myIssues = data.filter(
+        issue =>
+          issue.reporter?._id === user?.id ||
+          issue.reporter === user?.id
+      );
+
+      setIssues(myIssues);
+    } catch (err) {
+      setError('Failed to load data');
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
 
   useEffect(() => {
     fetchData();
 
     const socket = io(SOCKET_URL);
-    if (user?.id) socket.emit('join', user.id);
+
+    if (user?.id) {
+      socket.emit('join', user.id);
+    }
 
     socket.on('issueUpdated', ({ issueId, status, message }) => {
-      setNotifications(prev => [{
-        id: Date.now(),
-        message,
-        time: new Date().toLocaleTimeString(),
-        read: false
-      }, ...prev]);
+      setNotifications(prev => [
+        {
+          id: Date.now(),
+          message,
+          time: new Date().toLocaleTimeString(),
+          read: false
+        },
+        ...prev
+      ]);
+
       setIssues(prev =>
         prev.map(issue =>
-          issue._id === issueId ? { ...issue, status } : issue
+          issue._id === issueId
+            ? { ...issue, status }
+            : issue
         )
       );
     });
 
     socket.on('issueResolved', ({ issueId, message }) => {
-      setNotifications(prev => [{
-        id: Date.now(),
-        message,
-        time: new Date().toLocaleTimeString(),
-        read: false,
-        type: 'resolved'
-      }, ...prev]);
+      setNotifications(prev => [
+        {
+          id: Date.now(),
+          message,
+          time: new Date().toLocaleTimeString(),
+          read: false,
+          type: 'resolved'
+        },
+        ...prev
+      ]);
+
       setIssues(prev =>
         prev.map(issue =>
           issue._id === issueId
@@ -55,26 +84,15 @@ const CitizenDashboard = () => {
       );
     });
 
-    return () => socket.disconnect();
-  }, [user]);
-
-  const fetchData = async () => {
-    try {
-      const { data } = await getAllIssues();
-      const myIssues = data.filter(
-        issue => issue.reporter?._id === user?.id ||
-                 issue.reporter === user?.id
-      );
-      setIssues(myIssues);
-    } catch (err) {
-      setError('Failed to load data');
-    } finally {
-      setLoading(false);
-    }
-  };
+    return () => {
+      socket.disconnect();
+    };
+  }, [user, fetchData]);
 
   const markAllRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    setNotifications(prev =>
+      prev.map(n => ({ ...n, read: true }))
+    );
   };
 
   const unreadCount = notifications.filter(n => !n.read).length;

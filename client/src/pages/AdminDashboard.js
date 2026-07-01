@@ -6,7 +6,7 @@ import axios from 'axios';
 import Navbar from '../components/Navbar';
 import { io } from 'socket.io-client';
 
-const SOCKET_URL = 'http://localhost:5000';
+const SOCKET_URL = 'https://reportit-backend.onrender.com';
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -72,8 +72,8 @@ const AdminDashboard = () => {
 
       const [issuesRes, pendingRes, usersRes] = await Promise.all([
         getAllIssues(),
-        axios.get('http://localhost:5000/api/auth/pending-workers', { headers }),
-        axios.get('http://localhost:5000/api/auth/users', { headers })
+        axios.get('https://reportit-backend.onrender.com/api/auth/pending-workers', { headers }),
+        axios.get('https://reportit-backend.onrender.com/api/auth/users', { headers })
       ]);
 
       setIssues(issuesRes.data);
@@ -91,7 +91,7 @@ const AdminDashboard = () => {
     try {
       const token = localStorage.getItem('token');
       await axios.put(
-        `http://localhost:5000/api/auth/approve/${id}`,
+        `https://reportit-backend.onrender.com/api/auth/approve/${id}`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -106,7 +106,7 @@ const AdminDashboard = () => {
     try {
       const token = localStorage.getItem('token');
       await axios.put(
-        `http://localhost:5000/api/auth/reject/${id}`,
+        `https://reportit-backend.onrender.com/api/auth/reject/${id}`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -121,7 +121,7 @@ const AdminDashboard = () => {
     try {
       const token = localStorage.getItem('token');
       await axios.put(
-        `http://localhost:5000/api/issues/${issueId}/assign`,
+        `https://reportit-backend.onrender.com/api/issues/${issueId}/assign`,
         { workerId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
