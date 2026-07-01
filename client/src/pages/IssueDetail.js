@@ -1,6 +1,4 @@
-
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getIssue, upvoteIssue } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -34,25 +32,25 @@ const IssueDetail = () => {
   const [error, setError] = useState('');
   const [upvoted, setUpvoted] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
+const fetchIssue = useCallback(async () => {
+  try {
+    const { data } = await getIssue(id);
+    setIssue(data);
 
-  useEffect(() => {
-    fetchIssue();
-  }, [id]);
-
-  const fetchIssue = async () => {
-    try {
-      const { data } = await getIssue(id);
-      setIssue(data);
-      // Check if user already upvoted
-      if (user && data.upvotes?.includes(user.id)) {
-        setUpvoted(true);
-      }
-    } catch (err) {
-      setError('Issue not found');
-    } finally {
-      setLoading(false);
+    // Check if user already upvoted
+    if (user && data.upvotes?.includes(user.id)) {
+      setUpvoted(true);
     }
-  };
+  } catch (err) {
+    setError('Issue not found');
+  } finally {
+    setLoading(false);
+  }
+}, [id, user]);
+
+useEffect(() => {
+  fetchIssue();
+}, [fetchIssue]);
 
   const handleUpvote = async () => {
     if (!user) {
