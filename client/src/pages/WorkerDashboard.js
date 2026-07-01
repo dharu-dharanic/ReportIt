@@ -8,7 +8,7 @@ import axios from 'axios';
 import Navbar from '../components/Navbar';
 import { io } from 'socket.io-client';
 
-const SOCKET_URL = 'http://localhost:5000';
+const SOCKET_URL = 'https://reportit-backend.onrender.com';
 
 const WorkerDashboard = () => {
   const { user } = useAuth();
@@ -91,7 +91,7 @@ const WorkerDashboard = () => {
       }
 
       await axios.put(
-        `http://localhost:5000/api/issues/${issueId}/resolve`,
+        `https://reportit-backend.onrender.com/api/issues/${issueId}/resolve`,
         formData,
         {
           headers: {
